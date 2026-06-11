@@ -26,6 +26,7 @@ def _product_payload(product):
         "sell_price": product.sell_price,
         "quantity": product.quantity,
         "low_stock_threshold": product.low_stock_threshold,
+        "image_url": product.image_url,
     }
 
 
@@ -43,6 +44,7 @@ def add_product():
     quantity = data.get("quantity", 0)
     category_id = data.get("category_id")
     low_stock_threshold = data.get("low_stock_threshold", 5)
+    image_url = data.get("image_url")
 
     if not store_id or not name or not barcode:
         return jsonify({"message": "Missing required fields"}), 400
@@ -59,6 +61,7 @@ def add_product():
         sell_price=sell_price,
         quantity=quantity,
         low_stock_threshold=low_stock_threshold,
+        image_url=image_url,
     )
 
     db.session.add(product)
@@ -118,6 +121,8 @@ def update_product(product_id):
         product.quantity = data["quantity"]
     if "quantity_delta" in data:
         product.quantity += int(data["quantity_delta"])
+    if "image_url" in data:
+        product.image_url = data["image_url"]
 
     db.session.commit()
 

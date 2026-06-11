@@ -10,6 +10,7 @@ class ProductModel {
   final double sellPrice;
   final int quantity;
   final int lowStockThreshold;
+  final String? imageUrl;
 
   ProductModel({
     required this.id,
@@ -21,6 +22,7 @@ class ProductModel {
     required this.sellPrice,
     required this.quantity,
     required this.lowStockThreshold,
+    this.imageUrl,
   });
 
   bool get isLowStock => quantity <= lowStockThreshold;
@@ -36,6 +38,7 @@ class ProductModel {
       sellPrice: (json['sell_price'] as num).toDouble(),
       quantity: json['quantity'] as int,
       lowStockThreshold: json['low_stock_threshold'] as int? ?? 5,
+      imageUrl: json['image_url'] as String?,
     );
   }
 }
@@ -84,6 +87,7 @@ class ProductService {
     required double sellPrice,
     int quantity = 0,
     int? categoryId,
+    String? imageUrl,
   }) async {
     final response = await ApiClient.dio.post(
       '/products/',
@@ -95,6 +99,7 @@ class ProductService {
         'sell_price': sellPrice,
         'quantity': quantity,
         if (categoryId != null) 'category_id': categoryId,
+        if (imageUrl != null) 'image_url': imageUrl,
       },
     );
     return ProductModel.fromJson(response.data as Map<String, dynamic>);

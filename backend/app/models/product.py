@@ -22,4 +22,6 @@ class Product(db.Model):
 
     low_stock_threshold = db.Column(db.Integer, default=5)
 
+    image_url = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, server_default=db.func.now())

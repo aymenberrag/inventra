@@ -14,6 +14,22 @@ class AuthService {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> googleSignIn({
+    required String idToken,
+    String? fullName,
+    String? email,
+  }) async {
+    final response = await ApiClient.dio.post(
+      '/auth/google',
+      data: {
+        'id_token': idToken,
+        if (fullName != null) 'full_name': fullName,
+        if (email != null) 'email': email,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,

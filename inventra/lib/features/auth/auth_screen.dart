@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../core/storage/store_storage.dart';
 import 'auth_service.dart';
+import 'privacy_policy_screen.dart';
 import '../stores/store_selector_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -29,8 +33,10 @@ class _AuthScreenState extends State<AuthScreen>
   bool _obscureLogin = true;
   bool _obscureRegister = true;
   bool _obscureConfirm = true;
+  bool _agreedToPrivacy = false;
 
   final _authService = AuthService();
+  final _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   @override
   void initState() {
@@ -75,8 +81,82 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      setState(() => _loading = true);
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _loading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        throw Exception('Google sign-in failed: no ID token');
+      }
+
+      final response = await _authService.googleSignIn(
+        idToken: idToken,
+        fullName: account.displayName,
+        email: account.email,
+      );
+      await _authService.saveAuthResponse(response);
+      await StoreStorage.clear();
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const StoreSelectorScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_authService.parseError(e)),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Widget _buildGoogleButton(AppLocalizations l10n) {
+    return OutlinedButton.icon(
+      onPressed: _loading ? null : _handleGoogleSignIn,
+      icon: Image.network(
+        'https://www.google.com/favicon.ico',
+        width: 20,
+        height: 20,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.g_mobiledata, color: AppTheme.primary),
+      ),
+      label: Text(l10n.continueWithGoogle),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 52),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+    );
+  }
+
+  Widget _buildDivider(AppLocalizations l10n) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(l10n.orDivider, style: TextStyle(color: Colors.grey.shade600)),
+        ),
+        Expanded(child: Divider(color: Colors.grey.shade300)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       body: Container(
         decoration: AppTheme.authGradient,
@@ -86,9 +166,9 @@ class _AuthScreenState extends State<AuthScreen>
               const SizedBox(height: 40),
               const Icon(Icons.inventory_2_rounded, size: 56, color: Colors.white),
               const SizedBox(height: 12),
-              const Text(
-                'Inventra',
-                style: TextStyle(
+              Text(
+                l10n.appName,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -118,17 +198,17 @@ class _AuthScreenState extends State<AuthScreen>
                         labelColor: AppTheme.primary,
                         unselectedLabelColor: Colors.grey,
                         indicatorColor: AppTheme.primary,
-                        tabs: const [
-                          Tab(text: 'Login'),
-                          Tab(text: 'Register'),
+                        tabs: [
+                          Tab(text: l10n.login),
+                          Tab(text: l10n.register),
                         ],
                       ),
                       Expanded(
                         child: TabBarView(
                           controller: _tabController,
                           children: [
-                            _buildLoginTab(),
-                            _buildRegisterTab(),
+                            _buildLoginTab(l10n),
+                            _buildRegisterTab(l10n),
                           ],
                         ),
                       ),
@@ -143,7 +223,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildLoginTab() {
+  Widget _buildLoginTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Form(
@@ -151,12 +231,16 @@ class _AuthScreenState extends State<AuthScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildGoogleButton(l10n),
+            const SizedBox(height: 20),
+            _buildDivider(l10n),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _loginEmail,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: l10n.email,
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
               validator: Validators.email,
             ),
@@ -165,7 +249,7 @@ class _AuthScreenState extends State<AuthScreen>
               controller: _loginPassword,
               obscureText: _obscureLogin,
               decoration: InputDecoration(
-                labelText: 'Password',
+                labelText: l10n.password,
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -196,7 +280,7 @@ class _AuthScreenState extends State<AuthScreen>
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Sign In'),
+                  : Text(l10n.signIn),
             ),
           ],
         ),
@@ -204,7 +288,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildRegisterTab() {
+  Widget _buildRegisterTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Form(
@@ -212,11 +296,15 @@ class _AuthScreenState extends State<AuthScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildGoogleButton(l10n),
+            const SizedBox(height: 20),
+            _buildDivider(l10n),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _registerName,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person_outline),
+              decoration: InputDecoration(
+                labelText: l10n.fullName,
+                prefixIcon: const Icon(Icons.person_outline),
               ),
               validator: Validators.fullName,
             ),
@@ -224,9 +312,9 @@ class _AuthScreenState extends State<AuthScreen>
             TextFormField(
               controller: _registerEmail,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                labelText: l10n.email,
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
               validator: Validators.email,
             ),
@@ -235,7 +323,7 @@ class _AuthScreenState extends State<AuthScreen>
               controller: _registerPassword,
               obscureText: _obscureRegister,
               decoration: InputDecoration(
-                labelText: 'Password',
+                labelText: l10n.password,
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -252,7 +340,7 @@ class _AuthScreenState extends State<AuthScreen>
               controller: _registerConfirm,
               obscureText: _obscureConfirm,
               decoration: InputDecoration(
-                labelText: 'Confirm Password',
+                labelText: l10n.confirmPassword,
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -269,7 +357,79 @@ class _AuthScreenState extends State<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 12),
+            FormField<bool>(
+              initialValue: _agreedToPrivacy,
+              validator: (v) {
+                if (v != true) return l10n.mustAgreePrivacy;
+                return null;
+              },
+              builder: (state) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: state.value ?? false,
+                          onChanged: (v) {
+                            setState(() => _agreedToPrivacy = v ?? false);
+                            state.didChange(v);
+                          },
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPolicyScreen(),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontSize: 14,
+                                  ),
+                                  children: [
+                                    TextSpan(text: '${l10n.agreePrivacy.split(l10n.privacyPolicy).first.trim()} '),
+                                    TextSpan(
+                                      text: l10n.privacyPolicy,
+                                      style: const TextStyle(
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (state.hasError)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, top: 4),
+                        child: Text(
+                          state.errorText!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loading
                   ? null
@@ -290,7 +450,7 @@ class _AuthScreenState extends State<AuthScreen>
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Create Account'),
+                  : Text(l10n.createAccount),
             ),
           ],
         ),
