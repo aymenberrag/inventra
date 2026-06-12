@@ -5,13 +5,22 @@ from app.extensions import db
 from app.models.sale import Sale
 from app.models.sale_item import SaleItem
 from app.models.product import Product
+from app.models.store_member import StoreMember
+from app.models.store import Store
 
 sale_bp = Blueprint("sale", __name__)
+
+
+def _user_can_access_store(user_id, store_id):
+    return StoreMember.query.filter_by(
+        store_id=store_id,
+        user_id=user_id,
+    ).first() is not None
+
 
 @sale_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_sale():
-
     data = request.get_json()
 
     store_id = data.get("store_id")
@@ -21,6 +30,18 @@ def create_sale():
 
     if not items:
         return jsonify({"message": "No items in cart"}), 400
+
+    if not store_id:
+        return jsonify({"message": "store_id is required"}), 400
+
+    # Verify store exists
+    store = Store.query.get(store_id)
+    if not store:
+        return jsonify({"message": "Store not found"}), 404
+
+    # Verify user has access to store
+    if not _user_can_access_store(user_id, store_id):
+        return jsonify({"message": "Access denied"}), 403
 
     total = 0
     total_profit = 0
@@ -81,11 +102,19 @@ def create_sale():
         "profit": total_profit
     }), 201
 
+
 @sale_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_sales():
-
+    user_id = int(get_jwt_identity())
     store_id = request.args.get("store_id")
+
+    if not store_id:
+        return jsonify({"message": "store_id is required"}), 400
+
+    # Verify user has access to store
+    if not _user_can_access_store(user_id, int(store_id)):
+        return jsonify({"message": "Access denied"}), 403
 
     sales = Sale.query.filter_by(store_id=store_id).all()
 
@@ -98,4 +127,3 @@ def get_sales():
         }
         for s in sales
     ])
-
