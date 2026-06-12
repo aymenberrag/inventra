@@ -10,7 +10,7 @@ import '../../core/storage/app_prefs.dart';
 
 import '../../core/api/api_client.dart';
 
-import '../../main.dart';
+import '../../core/l10n/locale_notifier.dart';
 
 import '../auth/auth_screen.dart';
 
@@ -104,7 +104,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 
       final language = userData['language'] as String? ?? 'en';
 
-      await ref.read(localeNotifierProvider).setLocale(language);
+      await ref.read(localeNotifierProvider.notifier).setLocale(language);
 
     } catch (_) {}
 

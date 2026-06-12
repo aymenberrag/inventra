@@ -30,11 +30,13 @@ class ScannerScreen extends StatefulWidget {
 
 
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProviderStateMixin {
 
   final _productService = ProductService();
 
   final _saleService = SaleService();
+
+  late AnimationController _animController;
 
   final _scannerController = MobileScannerController(
 
@@ -61,13 +63,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
 
   @override
-
   void initState() {
-
     super.initState();
-
     _init();
-
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
   }
 
 
@@ -85,19 +87,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
 
   @override
-
   void dispose() {
-
+    _animController.dispose();
     _scannerController.dispose();
-
     for (final c in _priceControllers.values) {
-
       c.dispose();
-
     }
-
     super.dispose();
-
   }
 
 
@@ -139,111 +135,60 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
 
   Future<void> _onBarcodeDetected(BarcodeCapture capture) async {
-
     if (_processing || _storeId == null) return;
-
-
-
+    final l10n = AppLocalizations.of(context);
     final barcode = capture.barcodes.firstOrNull?.rawValue;
-
     if (barcode == null || barcode == _lastScanned) return;
 
-
-
     setState(() {
-
       _processing = true;
-
       _lastScanned = barcode;
-
     });
 
-
-
     try {
-
       final product = await _productService.getByBarcode(
-
         storeId: _storeId!,
-
         barcode: barcode,
-
       );
 
-
-
-      final l10n = AppLocalizations.of(context);
-
+      if (!mounted) return;
       final existing = _cart.indexWhere((c) => c.product.id == product.id);
-
       if (existing >= 0) {
-
         if (_cart[existing].quantity < product.quantity) {
-
           setState(() => _cart[existing].quantity++);
-
         } else {
-
           _showMessage(l10n.notEnoughStock);
-
         }
-
       } else {
-
         if (product.quantity > 0) {
-
           setState(() {
-
             _cart.add(
-
               CartItem(
-
                 product: ProductRef(
-
                   id: product.id,
-
                   name: product.name,
-
                   defaultSellPrice: product.sellPrice,
-
                   availableStock: product.quantity,
-
                 ),
-
                 sellPrice: product.sellPrice,
-
               ),
-
             );
-
           });
-
         } else {
-
           _showMessage('${product.name} ${l10n.outOfStock.toLowerCase()}');
-
         }
-
       }
-
     } catch (_) {
-
-      _showMessage(AppLocalizations.of(context).productNotFound);
-
+      _showMessage(l10n.productNotFound);
     } finally {
-
       await Future.delayed(const Duration(milliseconds: 800));
-
-      setState(() {
-
-        _processing = false;
-
-        _lastScanned = null;
-
-      });
-
+      if (mounted) {
+        setState(() {
+          _processing = false;
+          _lastScanned = null;
+        });
+      }
     }
-
   }
 
 
@@ -770,40 +715,65 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
                 ),
 
+                // Dark overlay with transparent cutout
+                CustomPaint(
+                  size: MediaQuery.of(context).size,
+                  painter: _ScanOverlayPainter(scanArea: const Size(280, 180)),
+                ),
+                // Corner brackets
                 Center(
-
-                  child: Container(
-
+                  child: SizedBox(
                     width: 280,
-
                     height: 180,
-
-                    decoration: BoxDecoration(
-
-                      border: Border.all(color: AppTheme.primary, width: 2.5),
-
-                      borderRadius: BorderRadius.circular(20),
-
-                    ),
-
                     child: Stack(
-
                       children: [
-
-                        Positioned(top: -1, left: -1, child: _corner(true, true)),
-
-                        Positioned(top: -1, right: -1, child: _corner(true, false)),
-
-                        Positioned(bottom: -1, left: -1, child: _corner(false, true)),
-
-                        Positioned(bottom: -1, right: -1, child: _corner(false, false)),
-
+                        Positioned(top: 0, left: 0, child: _corner(true, true)),
+                        Positioned(top: 0, right: 0, child: _corner(true, false)),
+                        Positioned(bottom: 0, left: 0, child: _corner(false, true)),
+                        Positioned(bottom: 0, right: 0, child: _corner(false, false)),
                       ],
-
                     ),
-
                   ),
-
+                ),
+                // Animated scan line
+                Center(
+                  child: SizedBox(
+                    width: 260,
+                    height: 180,
+                    child: AnimatedBuilder(
+                      animation: _animController,
+                      builder: (context, child) {
+                        return Align(
+                          alignment: Alignment(
+                            0,
+                            -1 + 2 * _animController.value,
+                          ),
+                          child: Container(
+                            width: double.infinity,
+                            height: 2,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.transparent,
+                                  AppTheme.primary.withValues(alpha: 0.8),
+                                  AppTheme.accent,
+                                  AppTheme.primary.withValues(alpha: 0.8),
+                                  Colors.transparent,
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withValues(alpha: 0.5),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
 
                 if (_processing)
@@ -957,67 +927,39 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
 
                         itemBuilder: (context, index) {
-
                           final item = _cart[index];
-
-                          return Container(
-
-                            width: 140,
-
-                            padding: const EdgeInsets.all(10),
-
-                            decoration: BoxDecoration(
-
-                              color: AppTheme.surface,
-
-                              borderRadius: BorderRadius.circular(12),
-
-                              border: Border.all(color: Colors.grey.shade200),
-
-                            ),
-
-                            child: Column(
-
-                              crossAxisAlignment: CrossAxisAlignment.start,
-
-                              children: [
-
-                                Text(
-
-                                  item.product.name,
-
-                                  maxLines: 1,
-
-                                  overflow: TextOverflow.ellipsis,
-
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-
-                                ),
-
-                                Text('${l10n.qty}: ${item.quantity}', style: const TextStyle(fontSize: 11)),
-
-                                Text(
-
-                                  CurrencyFormatter.format(item.total, _currency),
-
-                                  style: const TextStyle(
-
-                                    fontWeight: FontWeight.bold,
-
-                                    color: AppTheme.primary,
-
-                                    fontSize: 12,
-
+                          return GestureDetector(
+                            onTap: _showCartSheet,
+                            child: Container(
+                              width: 140,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.product.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                                   ),
-
-                                ),
-
-                              ],
-
+                                  Text('${l10n.qty}: ${item.quantity}', style: const TextStyle(fontSize: 11)),
+                                  Text(
+                                    CurrencyFormatter.format(item.total, _currency),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-
                           );
-
                         },
 
                       ),
@@ -1071,32 +1013,48 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
 
   Widget _corner(bool top, bool left) {
-
     return Container(
-
       width: 24,
-
       height: 24,
-
       decoration: BoxDecoration(
-
         border: Border(
-
           top: top ? const BorderSide(color: AppTheme.primary, width: 4) : BorderSide.none,
-
           bottom: !top ? const BorderSide(color: AppTheme.primary, width: 4) : BorderSide.none,
-
           left: left ? const BorderSide(color: AppTheme.primary, width: 4) : BorderSide.none,
-
           right: !left ? const BorderSide(color: AppTheme.primary, width: 4) : BorderSide.none,
-
         ),
-
       ),
-
     );
+  }
+}
 
+class _ScanOverlayPainter extends CustomPainter {
+  final Size scanArea;
+
+  _ScanOverlayPainter({required this.scanArea});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.6);
+    final cutout = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: scanArea.width,
+      height: scanArea.height,
+    );
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+        Path()
+          ..addRRect(
+            RRect.fromRectAndRadius(cutout, const Radius.circular(16)),
+          ),
+      ),
+      paint,
+    );
   }
 
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 

@@ -98,7 +98,7 @@ class _StoreSelectorScreenState extends State<StoreSelectorScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: currency,
+                  initialValue: currency,
                   decoration: const InputDecoration(labelText: 'Currency'),
                   items: const [
                     DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),

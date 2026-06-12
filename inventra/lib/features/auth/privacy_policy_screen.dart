@@ -68,24 +68,24 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'Send important service notifications',
               'Maintain account security',
             ]),
-            _section('3. Data Storage and Security', null, body:
+            _section('3. Data Storage and Security',
                 'We implement reasonable security measures to protect your information from '
                 'unauthorized access, alteration, disclosure, or destruction.\n\n'
                 'User passwords are stored using secure encryption and hashing methods. '
                 'Authentication tokens are used to maintain secure access to the platform.\n\n'
                 'While we strive to protect your information, no method of transmission or '
                 'storage is 100% secure.'),
-            _section('4. Sharing of Information', null, body:
+            _section('4. Sharing of Information',
                 'We do not sell, rent, or trade your personal information.\n\n'
                 'We may share information only:\n'
                 '• When required by law\n'
                 '• To protect the security and integrity of our services\n'
                 '• With trusted service providers that help operate our platform'),
-            _section('5. Analytics and Reporting', null, body:
+            _section('5. Analytics and Reporting',
                 'Inventra may analyze sales, inventory, and business activity to generate '
                 'reports, insights, forecasts, and recommendations for store owners. '
                 'These analytics are used solely to improve business management features.'),
-            _section('6. Data Retention', null, body:
+            _section('6. Data Retention',
                 'We retain your data while your account remains active and as necessary to '
                 'provide our services. You may request deletion of your account and associated '
                 'data at any time, subject to legal or operational requirements.'),
@@ -96,13 +96,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'Export your data',
               'Withdraw consent where applicable',
             ]),
-            _section('8. Children\'s Privacy', null, body:
+            _section('8. Children\'s Privacy',
                 'Inventra is intended for business users and is not directed toward children '
                 'under the age of 13. We do not knowingly collect information from children.'),
-            _section('9. Changes to This Privacy Policy', null, body:
+            _section('9. Changes to This Privacy Policy',
                 'We may update this Privacy Policy from time to time. Updated versions will be '
                 'posted within the application and will become effective upon publication.'),
-            _section('10. Contact Us', null, body:
+            _section('10. Contact Us',
                 'If you have any questions about this Privacy Policy or our privacy practices, '
                 'please contact us at:\n\nEmail: support@inventra.app'),
             const SizedBox(height: 16),

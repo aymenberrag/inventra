@@ -8,20 +8,16 @@ import 'core/l10n/locale_notifier.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_gate.dart';
 
-final localeNotifierProvider = ChangeNotifierProvider<LocaleNotifier>((ref) {
-  return LocaleNotifier();
-});
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiClient.init();
-  final localeNotifier = LocaleNotifier();
-  await localeNotifier.loadSavedLocale();
+
+  final container = ProviderContainer();
+  await container.read(localeNotifierProvider.notifier).loadSavedLocale();
+
   runApp(
-    ProviderScope(
-      overrides: [
-        localeNotifierProvider.overrideWith((ref) => localeNotifier),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: const InventraApp(),
     ),
   );
@@ -32,13 +28,14 @@ class InventraApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localeNotifier = ref.watch(localeNotifierProvider);
+    final locale = ref.watch(localeNotifierProvider);
+    final isRtl = locale.languageCode == 'ar';
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Inventra',
       theme: AppTheme.lightTheme,
-      locale: localeNotifier.locale,
+      locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -48,8 +45,7 @@ class InventraApp extends ConsumerWidget {
       ],
       builder: (context, child) {
         return Directionality(
-          textDirection:
-              localeNotifier.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: child!,
         );
       },

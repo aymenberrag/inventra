@@ -2,10 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-import 'package:fl_chart/fl_chart.dart';
-
-import 'package:intl/intl.dart';
-
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/l10n/app_localizations.dart';
@@ -233,11 +229,9 @@ class _StockScreenState extends State<StockScreen> {
 
 
   Future<void> _showAddProductSheet() async {
-
     final l10n = AppLocalizations.of(context);
-
     final storeId = await StoreStorage.getStoreId();
-
+    if (!mounted) return;
     if (storeId == null) return;
 
 
@@ -444,9 +438,9 @@ class _StockScreenState extends State<StockScreen> {
 
                             child: DropdownButtonFormField<int?>(
 
-                              value: categoryId,
-
                               decoration: InputDecoration(labelText: l10n.category),
+
+                              initialValue: categoryId,
 
                               items: [
 
