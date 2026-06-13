@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 
 from sqlalchemy import func
 
@@ -7,20 +7,11 @@ from app.extensions import db
 from app.models.sale import Sale
 from app.models.sale_item import SaleItem
 from app.models.product import Product
-from app.models.store_member import StoreMember
 
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 stats_bp = Blueprint("stats", __name__)
-
-
-def _user_can_access_store(user_id, store_id):
-    return StoreMember.query.filter_by(
-        store_id=store_id,
-        user_id=user_id,
-    ).first() is not None
-
 
 def parse_dates():
     """
@@ -59,20 +50,12 @@ def parse_dates():
 
     return start_date, end_date
 
-
 @stats_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
 def dashboard():
-    user_id = int(get_jwt_identity())
+
     store_id = request.args.get("store_id")
     period = request.args.get("period")
-
-    if not store_id:
-        return jsonify({"message": "store_id is required"}), 400
-
-    # Verify user has access to store
-    if not _user_can_access_store(user_id, int(store_id)):
-        return jsonify({"message": "Access denied"}), 403
 
     start_date, end_date = parse_dates()
 
@@ -118,19 +101,11 @@ def dashboard():
         "chart_type": "hourly" if period == "today" else "daily"
     })
 
-
 @stats_bp.route("/top-products", methods=["GET"])
 @jwt_required()
 def top_products():
-    user_id = int(get_jwt_identity())
+
     store_id = request.args.get("store_id")
-
-    if not store_id:
-        return jsonify({"message": "store_id is required"}), 400
-
-    # Verify user has access to store
-    if not _user_can_access_store(user_id, int(store_id)):
-        return jsonify({"message": "Access denied"}), 403
 
     results = db.session.query(
         Product.name,
@@ -150,3 +125,5 @@ def top_products():
         }
         for r in results
     ])
+
+
